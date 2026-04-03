@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>川麻 V8</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        body {
+            background: linear-gradient(to bottom right, #065f46, #022c22);
+            color: #fff;
+            min-height: 100vh;
+            padding: 16px;
+        }
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+        .title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: #facc15;
+            margin: 10px 0;
+        }
+        .info-bar {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            font-size: 18px;
+            margin: 10px 0 20px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .setting-btn {
+            color: #fff;
+            background: transparent;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        /* 回字形九宫格布局 */
+        .players-container {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .player-card {
+            background: #047857;
+            border-radius: 16px;
+            padding: 12px 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 3px solid transparent;
+        }
+        /* 四个玩家方位 */
+        .player-north { grid-column: 2 / 3; grid-row: 1 / 2; }
+        .player-west  { grid-column: 1 / 2; grid-row: 2 / 3; }
+        .player-east  { grid-column: 3 / 4; grid-row: 2 / 3; }
+        .player-south { grid-column: 2 / 3; grid-row: 3 / 4; }
+
+        .player-card.active {
+            border-color: #facc15;
+            transform: scale(1.05);
+        }
+        .player-card.hu {
+            background: #facc15;
+            color: #1f2937;
+        }
+        .player-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        .player-score {
+            font-size: 28px;
+            font-weight: bold;
+            color: #4ade80;
+        }
+        .player-card.hu .player-score {
+            color: #1f2937;
+        }
+        .btn {
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #fff;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .btn-green { background: #10b981; }
+        .btn-red { background: #ef4444; }
+        .btn-blue { background: #3b82f6; }
+        .btn-yellow { background: #eab308; }
+        .btn-gray { background: #6b7280; }
+
+        /* 番数按钮渐变配色 */
+        .fan-1 { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        .fan-2 { background: linear-gradient(135deg, #16a34a, #15803d); }
+        .fan-4 { background: linear-gradient(135deg, #15803d, #166534); }
+        .fan-8 { background: linear-gradient(135deg, #f87171, #ef4444); }
+        .fan-16 { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .fan-32 { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+
+        .panel {
+            background: #047857;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .panel.active {
+            display: block;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+        /* 底部按钮布局：下一局(2份)、撤销(1份)、重新开始(1份) */
+        .bottom-btn-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .history-box {
+            background: #047857;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .history-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .total-box {
+            background: #047857;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+        .total-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: auto;
+            min-width: 100%;
+            white-space: nowrap;
+        }
+        th, td {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 10px 8px;
+            text-align: center;
+            font-size: 16px;
+        }
+        th {
+            background: rgba(0, 0, 0, 0.2);
+            font-weight: bold;
+        }
+        .win { color: #4ade80; font-weight: bold; }
+        .lose { color: #f87171; font-weight: bold; }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            padding: 16px;
+        }
+        .modal-content {
+            background: #065f46;
+            border-radius: 16px;
+            padding: 20px;
+            width: 100%;
+            max-width: 360px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .input-box {
+            width: 100%;
+            background: #047857;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            color: #fff;
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .setting-item {
+            margin-bottom: 16px;
+        }
+        .setting-label {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="title">川麻 V8</div>
+    <div class="info-bar">
+        <div>第 <span id="round-num">1</span> 局</div>
+        <button class="setting-btn" id="setting-btn">底分: <span id="base-score">1</span> | 杠倍: <span id="gang-multi">明1/暗2</span></button>
+    </div>
+
+    <!-- 回字形玩家布局 -->
+    <div class="players-container" id="players-container"></div>
+
+    <div class="panel active" id="main-panel">
+        <div class="grid-2">
+            <button class="btn btn-red" id="btn-zimo">自摸</button>
+            <button class="btn btn-green" id="btn-dianpao">点炮</button>
+            <button class="btn btn-blue" id="btn-minggang">明杠</button>
+            <button class="btn btn-yellow" id="btn-angang">暗杠</button>
+        </div>
+    </div>
+
+    <div class="panel" id="fan-panel">
+        <div class="modal-title">选择番数</div>
+        <div class="grid-3">
+            <button class="btn fan-1 fan-btn" data-fan="1">1番</button>
+            <button class="btn fan-2 fan-btn" data-fan="2">2番</button>
+            <button class="btn fan-4 fan-btn" data-fan="4">4番</button>
+            <button class="btn fan-8 fan-btn" data-fan="8">8番</button>
+            <button class="btn fan-16 fan-btn" data-fan="16">16番</button>
+            <button class="btn fan-32 fan-btn" data-fan="32">32番</button>
+        </div>
+        <div class="grid-2" style="margin-top: 8px;">
+            <input type="number" class="input-box" id="custom-fan" placeholder="自定义番数">
+            <button class="btn btn-green" id="btn-custom-fan">确定</button>
+        </div>
+        <button class="btn btn-gray" id="btn-cancel-fan" style="margin-top: 8px;">取消</button>
+    </div>
+
+    <div class="panel" id="choose-panel">
+        <div class="modal-title" id="choose-title"></div>
+        <div class="grid-2" id="choose-list"></div>
+        <button class="btn btn-gray" id="btn-cancel-choose" style="margin-top: 8px;">取消</button>
+    </div>
+
+    <!-- 底部按钮：顺序调整+大小适配 -->
+    <div class="bottom-btn-grid">
+        <button class="btn btn-blue" id="btn-next-round">下一局</button>
+        <button class="btn btn-yellow" id="btn-undo">撤销</button>
+        <button class="btn btn-red" id="btn-reset">重新开始</button>
+    </div>
+
+    <div class="history-box">
+        <div class="history-title">操作记录</div>
+        <div id="history-log"></div>
+    </div>
+
+    <div class="total-box">
+        <div class="total-title">总战绩</div>
+        <table id="total-table">
+            <thead id="total-head"></thead>
+            <tbody id="total-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 全局设置弹窗 -->
+<div class="modal" id="setting-modal">
+    <div class="modal-content">
+        <div class="modal-title">全局设置</div>
+        
+        <div class="setting-item">
+            <label class="setting-label">底分设置</label>
+            <div class="grid-3" style="margin-bottom: 8px;">
+                <button class="btn btn-green base-btn" data-score="1">1</button>
+                <button class="btn btn-green base-btn" data-score="5">5</button>
+                <button class="btn btn-green base-btn" data-score="10">10</button>
+                <button class="btn btn-green base-btn" data-score="20">20</button>
+                <button class="btn btn-green base-btn" data-score="50">50</button>
+                <button class="btn btn-green base-btn" data-score="100">100</button>
+            </div>
+            <div class="grid-2">
+                <input type="number" class="input-box" id="custom-base" placeholder="自定义底分">
+                <button class="btn btn-green" id="btn-custom-base">确定</button>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label class="setting-label">明杠倍数（底分×倍数）</label>
+            <div class="grid-3" style="margin-bottom: 8px;">
+                <button class="btn btn-blue minggang-btn" data-multi="1">1倍</button>
+                <button class="btn btn-blue minggang-btn" data-multi="2">2倍</button>
+                <button class="btn btn-blue minggang-btn" data-multi="3">3倍</button>
+            </div>
+            <div class="grid-2">
+                <input type="number" class="input-box" id="custom-minggang" placeholder="自定义倍数">
+                <button class="btn btn-blue" id="btn-custom-minggang">确定</button>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label class="setting-label">暗杠倍数（底分×倍数）</label>
+            <div class="grid-3" style="margin-bottom: 8px;">
+                <button class="btn btn-yellow angang-btn" data-multi="1">1倍</button>
+                <button class="btn btn-yellow angang-btn" data-multi="2">2倍</button>
+                <button class="btn btn-yellow angang-btn" data-multi="4">4倍</button>
+            </div>
+            <div class="grid-2">
+                <input type="number" class="input-box" id="custom-angang" placeholder="自定义倍数">
+                <button class="btn btn-yellow" id="btn-custom-angang">确定</button>
+            </div>
+        </div>
+
+        <button class="btn btn-gray" id="btn-close-setting" style="width:100%;">关闭</button>
+    </div>
+</div>
+
+<!-- 玩家改名弹窗 -->
+<div class="modal" id="rename-modal">
+    <div class="modal-content">
+        <div class="modal-title">修改玩家名字</div>
+        <input type="text" class="input-box" id="rename-input" placeholder="输入名字">
+        <div class="grid-2">
+            <button class="btn btn-green" id="btn-confirm-rename">确定</button>
+            <button class="btn btn-gray" id="btn-cancel-rename">取消</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 游戏状态
+let gameState = {
+    players: ['北家', '西家', '东家', '南家'],
+    baseScore: 1,
+    gangMultiplier: {
+        minggang: 1,
+        angang: 2
+    },
+    currentRound: 1,
+    roundScores: [[0, 0, 0, 0]],
+    historyLogs: [[]],
+    stateHistory: [],
+    playersHu: [false, false, false, false],
+    currentAction: null,
+    currentWinner: null,
+    currentLoser: null,
+    renamingPlayer: null,
+    playerClass: ['player-north', 'player-west', 'player-east', 'player-south']
+};
+
+const $ = (id) => document.getElementById(id);
+
+function vibrate(duration = 50) {
+    if (navigator.vibrate) navigator.vibrate(duration);
+}
+
+function addLongPress(el, callback, duration = 600) {
+    let timer = null;
+    let isLongPress = false;
+    el.addEventListener('pointerdown', (e) => {
+        isLongPress = false;
+        timer = setTimeout(() => {
+            isLongPress = true;
+            vibrate(100);
+            callback();
+        }, duration);
+    });
+    el.addEventListener('pointermove', () => {
+        if (timer) {
+            clearTimeout(timer);
+            timer = null;
+        }
+    });
+    el.addEventListener('pointerup', () => {
+        if (timer) {
+            clearTimeout(timer);
+            timer = null;
+        }
+    });
+    el.addEventListener('pointercancel', () => {
+        if (timer) {
+            clearTimeout(timer);
+            timer = null;
+        }
+    });
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+function clearPlayerActive() {
+    document.querySelectorAll('.player-card').forEach(card => {
+        card.classList.remove('active');
+    });
+    gameState.currentWinner = null;
+}
+
+function updateGangMultiDisplay() {
+    $('gang-multi').innerText = `明${gameState.gangMultiplier.minggang}/暗${gameState.gangMultiplier.angang}`;
+}
+
+function saveState() {
+    gameState.stateHistory.push({
+        roundScores: JSON.parse(JSON.stringify(gameState.roundScores)),
+        historyLogs: JSON.parse(JSON.stringify(gameState.historyLogs)),
+        playersHu: [...gameState.playersHu]
+    });
+}
+
+function getCurrentScores() {
+    return gameState.roundScores[gameState.currentRound - 1];
+}
+
+function renderPlayers() {
+    const container = $('players-container');
+    container.innerHTML = '';
+    gameState.players.forEach((name, i) => {
+        const card = document.createElement('div');
+        card.className = `player-card ${gameState.playerClass[i]} ${gameState.playersHu[i] ? 'hu' : ''} ${gameState.currentWinner === i ? 'active' : ''}`;
+        card.innerHTML = `
+            <div class="player-name">${name}</div>
+            <div class="player-score">${getCurrentScores()[i]}</div>
+        `;
+        card.onclick = () => {
+            vibrate();
+            if (gameState.playersHu[i]) {
+                alert(`${name} 已胡牌，无法操作`);
+                return;
+            }
+            if (gameState.currentWinner === i) {
+                clearPlayerActive();
+            } else {
+                clearPlayerActive();
+                gameState.currentWinner = i;
+                card.classList.add('active');
+            }
+        };
+        addLongPress(card, () => {
+            gameState.renamingPlayer = i;
+            $('rename-input').value = name;
+            $('rename-modal').style.display = 'flex';
+        });
+        container.appendChild(card);
+    });
+    $('round-num').textContent = gameState.currentRound;
+    $('base-score').textContent = gameState.baseScore;
+    updateGangMultiDisplay();
+}
+
+function renderHistory() {
+    const logEl = $('history-log');
+    logEl.innerHTML = '';
+    for (let r = gameState.historyLogs.length - 1; r >= 0; r--) {
+        const roundLog = gameState.historyLogs[r];
+        if (roundLog.length === 0) continue;
+        const roundDiv = document.createElement('div');
+        roundDiv.style.marginBottom = '8px';
+        roundDiv.innerHTML = `<strong>--- 第 ${r + 1} 局 ---</strong>`;
+        [...roundLog].reverse().forEach(log => {
+            const p = document.createElement('div');
+            p.textContent = log;
+            p.style.marginTop = '4px';
+            roundDiv.appendChild(p);
+        });
+        logEl.appendChild(roundDiv);
+    }
+    if (!logEl.innerHTML) logEl.innerHTML = '<div style="text-align:center;color:#a7f3d0;">暂无记录</div>';
+}
+
+// 总战绩表：最新局在最左，旧局在右
+function renderTotal() {
+    const head = $('total-head');
+    const body = $('total-body');
+    
+    // 表头：最新局在最左，倒序排列
+    let headHtml = '<tr>';
+    headHtml += '<th>玩家</th>';
+    // 从最新局往第1局循环
+    for (let r = gameState.roundScores.length; r >= 1; r--) {
+        headHtml += `<th>第${r}局</th>`;
+    }
+    headHtml += '<th>总计</th>';
+    headHtml += '</tr>';
+    head.innerHTML = headHtml;
+
+    // 表体：对应倒序的局数取数据
+    let bodyHtml = '';
+    gameState.players.forEach((name, p) => {
+        let total = 0;
+        let rowHtml = '<tr>';
+        rowHtml += `<td>${name}</td>`;
+        // 同样倒序取每局数据
+        for (let r = gameState.roundScores.length; r >= 1; r--) {
+            const roundIndex = r - 1;
+            const score = gameState.roundScores[roundIndex][p];
+            total += score;
+            rowHtml += `<td class="${score > 0 ? 'win' : score < 0 ? 'lose' : ''}">${score > 0 ? `+${score}` : score}</td>`;
+        }
+        rowHtml += `<td class="${total > 0 ? 'win' : total < 0 ? 'lose' : ''}">${total > 0 ? `+${total}` : total}</td>`;
+        rowHtml += '</tr>';
+        bodyHtml += rowHtml;
+    });
+    body.innerHTML = bodyHtml;
+}
+
+function showPanel(panelId) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    $(panelId).classList.add('active');
+}
+
+function handleHu(fan, fanText) {
+    saveState();
+    const amount = gameState.baseScore * fan;
+    const winner = gameState.currentWinner;
+    const currentScores = getCurrentScores();
+    const currentLog = gameState.historyLogs[gameState.currentRound - 1];
+
+    if (gameState.currentAction === 'zimo') {
+        for (let i = 0; i < 4; i++) {
+            if (i !== winner && !gameState.playersHu[i]) {
+                currentScores[i] -= amount;
+                currentScores[winner] += amount;
+            }
+        }
+        currentLog.push(`${gameState.players[winner]} ${fanText}自摸，每人-${amount}元`);
+    } else if (gameState.currentAction === 'dianpao') {
+        const loser = gameState.currentLoser;
+        currentScores[loser] -= amount;
+        currentScores[winner] += amount;
+        currentLog.push(`${gameState.players[loser]} 点炮给 ${gameState.players[winner]}，${fanText}，-${amount}元`);
+    }
+
+    gameState.playersHu[winner] = true;
+    clearPlayerActive();
+    renderPlayers();
+    renderHistory();
+    renderTotal();
+    showPanel('main-panel');
+    gameState.currentAction = null;
+    gameState.currentLoser = null;
+}
+
+function handleGang(type) {
+    saveState();
+    const ganger = gameState.currentWinner;
+    const multi = type === 'minggang' ? gameState.gangMultiplier.minggang : gameState.gangMultiplier.angang;
+    const amount = gameState.baseScore * multi;
+    const currentScores = getCurrentScores();
+    const currentLog = gameState.historyLogs[gameState.currentRound - 1];
+
+    if (type === 'angang') {
+        for (let i = 0; i < 4; i++) {
+            if (i !== ganger && !gameState.playersHu[i]) {
+                currentScores[i] -= amount;
+                currentScores[ganger] += amount;
+            }
+        }
+        currentLog.push(`${gameState.players[ganger]} 暗杠，每人-${amount}元`);
+    } else if (type === 'minggang') {
+        const loser = gameState.currentLoser;
+        currentScores[loser] -= amount;
+        currentScores[ganger] += amount;
+        currentLog.push(`${gameState.players[loser]} 点杠给 ${gameState.players[ganger]}，-${amount}元`);
+    }
+
+    clearPlayerActive();
+    renderPlayers();
+    renderHistory();
+    renderTotal();
+    showPanel('main-panel');
+    gameState.currentLoser = null;
+}
+
+function bindEvents() {
+    $('setting-btn').onclick = () => {
+        vibrate();
+        $('setting-modal').style.display = 'flex';
+    };
+
+    // 自摸/点炮颜色已调换
+    $('btn-zimo').onclick = () => {
+        vibrate();
+        if (gameState.currentWinner === null) {
+            alert('请先点击选中玩家');
+            return;
+        }
+        gameState.currentAction = 'zimo';
+        showPanel('fan-panel');
+    };
+
+    $('btn-dianpao').onclick = () => {
+        vibrate();
+        if (gameState.currentWinner === null) {
+            alert('请先点击选中玩家');
+            return;
+        }
+        gameState.currentAction = 'dianpao';
+        const list = $('choose-list');
+        list.innerHTML = '';
+        gameState.players.forEach((name, i) => {
+            if (i !== gameState.currentWinner && !gameState.playersHu[i]) {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-green';
+                btn.textContent = name;
+                btn.onclick = () => {
+                    vibrate();
+                    gameState.currentLoser = i;
+                    showPanel('fan-panel');
+                };
+                list.appendChild(btn);
+            }
+        });
+        $('choose-title').textContent = '谁点炮？';
+        showPanel('choose-panel');
+    };
+
+    $('btn-minggang').onclick = () => {
+        vibrate();
+        if (gameState.currentWinner === null) {
+            alert('请先点击选中玩家');
+            return;
+        }
+        const list = $('choose-list');
+        list.innerHTML = '';
+        gameState.players.forEach((name, i) => {
+            if (i !== gameState.currentWinner && !gameState.playersHu[i]) {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-blue';
+                btn.textContent = name;
+                btn.onclick = () => {
+                    vibrate();
+                    gameState.currentLoser = i;
+                    handleGang('minggang');
+                };
+                list.appendChild(btn);
+            }
+        });
+        $('choose-title').textContent = '谁点杠？';
+        showPanel('choose-panel');
+    };
+
+    $('btn-angang').onclick = () => {
+        vibrate();
+        if (gameState.currentWinner === null) {
+            alert('请先点击选中玩家');
+            return;
+        }
+        handleGang('angang');
+    };
+
+    document.querySelectorAll('.fan-btn').forEach(btn => {
+        btn.onclick = () => {
+            vibrate();
+            const fan = parseInt(btn.dataset.fan);
+            handleHu(fan, `${fan}番`);
+        };
+    });
+
+    $('btn-custom-fan').onclick = () => {
+        vibrate();
+        const fan = parseInt($('custom-fan').value);
+        if (isNaN(fan) || fan <= 0) {
+            alert('请输入有效番数');
+            return;
+        }
+        handleHu(fan, `${fan}番`);
+        $('custom-fan').value = '';
+    };
+
+    $('btn-cancel-fan').onclick = () => {
+        vibrate();
+        showPanel('main-panel');
+        gameState.currentAction = null;
+        gameState.currentLoser = null;
+    };
+
+    $('btn-cancel-choose').onclick = () => {
+        vibrate();
+        showPanel('main-panel');
+        gameState.currentAction = null;
+        gameState.currentLoser = null;
+    };
+
+    $('btn-undo').onclick = () => {
+        vibrate();
+        if (gameState.stateHistory.length === 0) {
+            alert('无操作可撤销');
+            return;
+        }
+        if (!confirm('确定撤销上一步？')) return;
+        const prev = gameState.stateHistory.pop();
+        gameState.roundScores = prev.roundScores;
+        gameState.historyLogs = prev.historyLogs;
+        gameState.playersHu = prev.playersHu;
+        clearPlayerActive();
+        renderPlayers();
+        renderHistory();
+        renderTotal();
+    };
+
+    $('btn-next-round').onclick = () => {
+        vibrate();
+        if (!confirm('确定开始下一局？本局将锁定，无法修改')) return;
+        gameState.currentRound++;
+        gameState.roundScores.push([0, 0, 0, 0]);
+        gameState.historyLogs.push([]);
+        gameState.playersHu = [false, false, false, false];
+        gameState.stateHistory = [];
+        clearPlayerActive();
+        renderPlayers();
+        renderHistory();
+        renderTotal();
+        showPanel('main-panel');
+    };
+
+    $('btn-reset').onclick = () => {
+        vibrate();
+        if (!confirm('确定清空所有记录？')) return;
+        gameState = {
+            players: gameState.players,
+            baseScore: gameState.baseScore,
+            gangMultiplier: gameState.gangMultiplier,
+            currentRound: 1,
+            roundScores: [[0, 0, 0, 0]],
+            historyLogs: [[]],
+            stateHistory: [],
+            playersHu: [false, false, false, false],
+            currentAction: null,
+            currentWinner: null,
+            currentLoser: null,
+            renamingPlayer: null,
+            playerClass: ['player-north', 'player-west', 'player-east', 'player-south']
+        };
+        clearPlayerActive();
+        renderPlayers();
+        renderHistory();
+        renderTotal();
+        showPanel('main-panel');
+    };
+
+    document.querySelectorAll('.base-btn').forEach(btn => {
+        btn.onclick = () => {
+            vibrate();
+            gameState.baseScore = parseInt(btn.dataset.score);
+            renderPlayers();
+        };
+    });
+
+    $('btn-custom-base').onclick = () => {
+        vibrate();
+        const score = parseInt($('custom-base').value);
+        if (isNaN(score) || score <= 0) {
+            alert('请输入有效底分');
+            return;
+        }
+        gameState.baseScore = score;
+        renderPlayers();
+        $('custom-base').value = '';
+    };
+
+    document.querySelectorAll('.minggang-btn').forEach(btn => {
+        btn.onclick = () => {
+            vibrate();
+            gameState.gangMultiplier.minggang = parseInt(btn.dataset.multi);
+            updateGangMultiDisplay();
+        };
+    });
+
+    $('btn-custom-minggang').onclick = () => {
+        vibrate();
+        const multi = parseFloat($('custom-minggang').value);
+        if (isNaN(multi) || multi < 0) {
+            alert('请输入有效倍数');
+            return;
+        }
+        gameState.gangMultiplier.minggang = multi;
+        updateGangMultiDisplay();
+        $('custom-minggang').value = '';
+    };
+
+    document.querySelectorAll('.angang-btn').forEach(btn => {
+        btn.onclick = () => {
+            vibrate();
+            gameState.gangMultiplier.angang = parseInt(btn.dataset.multi);
+            updateGangMultiDisplay();
+        };
+    });
+
+    $('btn-custom-angang').onclick = () => {
+        vibrate();
+        const multi = parseFloat($('custom-angang').value);
+        if (isNaN(multi) || multi < 0) {
+            alert('请输入有效倍数');
+            return;
+        }
+        gameState.gangMultiplier.angang = multi;
+        updateGangMultiDisplay();
+        $('custom-angang').value = '';
+    };
+
+    $('btn-close-setting').onclick = () => {
+        vibrate();
+        $('setting-modal').style.display = 'none';
+    };
+
+    $('btn-confirm-rename').onclick = () => {
+        vibrate();
+        const name = $('rename-input').value.trim();
+        if (!name) {
+            alert('请输入名字');
+            return;
+        }
+        gameState.players[gameState.renamingPlayer] = name;
+        renderPlayers();
+        renderTotal();
+        $('rename-modal').style.display = 'none';
+    };
+
+    $('btn-cancel-rename').onclick = () => {
+        vibrate();
+        $('rename-modal').style.display = 'none';
+    };
+
+    $('setting-modal').onclick = (e) => e.target === $('setting-modal') && ($('setting-modal').style.display = 'none');
+    $('rename-modal').onclick = (e) => e.target === $('rename-modal') && ($('rename-modal').style.display = 'none');
+}
+
+function init() {
+    bindEvents();
+    renderPlayers();
+    renderHistory();
+    renderTotal();
+}
+
+init();
+</script>
+</body>
+</html>
