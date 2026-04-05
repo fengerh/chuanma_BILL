@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>川麻 V9</title>
+    <title>川麻 V10</title>
     <style>
         * {
             margin: 0;
@@ -70,6 +70,8 @@
             transition: all 0.2s;
             cursor: pointer;
             border: 3px solid transparent;
+            /* 确保点击区域覆盖整个卡片 */
+            pointer-events: auto;
         }
         /* 四个玩家方位 */
         .player-north { grid-column: 2 / 3; grid-row: 1 / 2; }
@@ -93,11 +95,15 @@
             overflow: hidden;
             text-overflow: ellipsis;
             max-width: 100%;
+            /* 子元素不拦截点击事件 */
+            pointer-events: none;
         }
         .player-score {
             font-size: 28px;
             font-weight: bold;
             color: #4ade80;
+            /* 子元素不拦截点击事件 */
+            pointer-events: none;
         }
         .player-card.hu .player-score {
             color: #1f2937;
@@ -257,7 +263,7 @@
 </head>
 <body>
 <div class="container">
-    <div class="title">川麻 V9</div>
+    <div class="title">川麻 V10</div>
     <div class="info-bar">
         <div>第 <span id="round-num">1</span> 局</div>
         <button class="setting-btn" id="setting-btn">底分: <span id="base-score">1</span> | 杠倍: <span id="gang-multi">明1/暗2</span></button>
@@ -408,7 +414,7 @@ let gameState = {
 
 const $ = (id) => document.getElementById(id);
 
-// ===================== 1. 本地存储功能 =====================
+// ===================== 本地存储功能 =====================
 function saveGameState() {
     localStorage.setItem('chuanma_game_state', JSON.stringify(gameState));
 }
@@ -420,7 +426,7 @@ function loadGameState() {
     }
 }
 
-// ===================== 2. 设置弹窗显示当前配置 =====================
+// ===================== 设置弹窗显示当前配置 =====================
 function updateSettingDisplay() {
     $('current-base').innerText = `当前底分：${gameState.baseScore}`;
     $('current-minggang').innerText = `当前明杠：${gameState.gangMultiplier.minggang}倍`;
@@ -486,20 +492,12 @@ function renderPlayers() {
     gameState.players.forEach((name, i) => {
         const card = document.createElement('div');
         card.className = `player-card ${gameState.playerClass[i]} ${gameState.playersHu[i] ? 'hu' : ''} ${gameState.currentWinner === i ? 'active' : ''}`;
+        card.dataset.index = i; // 存储玩家索引
         card.innerHTML = `
             <div class="player-name">${name}</div>
             <div class="player-score">${getCurrentScores()[i]}</div>
         `;
-        card.onclick = () => {
-            vibrate();
-            if (gameState.playersHu[i]) {
-                alert(`${name} 已胡牌，无法操作`);
-                return;
-            }
-            clearPlayerActive();
-            gameState.currentWinner = i;
-            card.classList.add('active');
-        };
+        // 长按改名
         addLongPress(card, () => {
             gameState.renamingPlayer = i;
             $('rename-input').value = name;
@@ -510,6 +508,34 @@ function renderPlayers() {
     $('round-num').textContent = gameState.currentRound;
     $('base-score').textContent = gameState.baseScore;
     updateGangMultiDisplay();
+}
+
+// ===================== 核心修复：事件委托处理玩家点击 =====================
+function initPlayerClickHandler() {
+    const container = $('players-container');
+    container.addEventListener('click', (e) => {
+        // 找到最近的玩家卡片
+        const card = e.target.closest('.player-card');
+        if (!card) return;
+        
+        const playerIndex = parseInt(card.dataset.index);
+        const playerName = gameState.players[playerIndex];
+        
+        vibrate();
+        if (gameState.playersHu[playerIndex]) {
+            alert(`${playerName} 已胡牌，无法操作`);
+            return;
+        }
+        
+        // 切换选中状态
+        if (gameState.currentWinner === playerIndex) {
+            clearPlayerActive();
+        } else {
+            clearPlayerActive();
+            gameState.currentWinner = playerIndex;
+            card.classList.add('active');
+        }
+    });
 }
 
 // 渲染操作记录
@@ -533,7 +559,7 @@ function renderHistory() {
     if (!logEl.innerHTML) logEl.innerHTML = '<div style="text-align:center;color:#a7f3d0;">暂无记录</div>';
 }
 
-// ===================== 3. 总战绩表格横竖翻转（新局在上） =====================
+// 总战绩表格（玩家横向，局数纵向，新局在上）
 function renderTotal() {
     const head = $('total-head');
     const body = $('total-body');
@@ -645,6 +671,9 @@ function handleGang(type) {
 
 // 绑定所有事件
 function bindEvents() {
+    // 初始化玩家点击事件委托
+    initPlayerClickHandler();
+
     // 打开设置 + 显示当前配置
     $('setting-btn').onclick = () => {
         vibrate();
@@ -655,7 +684,10 @@ function bindEvents() {
     // 自摸
     $('btn-zimo').onclick = () => {
         vibrate();
-        if (!gameState.currentWinner) return alert('请先选中玩家');
+        if (gameState.currentWinner === null) {
+            alert('请先点击选中玩家');
+            return;
+        }
         gameState.currentAction = 'zimo';
         showPanel('fan-panel');
     };
@@ -663,7 +695,10 @@ function bindEvents() {
     // 点炮
     $('btn-dianpao').onclick = () => {
         vibrate();
-        if (!gameState.currentWinner) return alert('请先选中玩家');
+        if (gameState.currentWinner === null) {
+            alert('请先点击选中玩家');
+            return;
+        }
         gameState.currentAction = 'dianpao';
         const list = $('choose-list');
         list.innerHTML = '';
@@ -687,7 +722,10 @@ function bindEvents() {
     // 明杠/暗杠
     $('btn-minggang').onclick = () => {
         vibrate();
-        if (!gameState.currentWinner) return alert('请先选中玩家');
+        if (gameState.currentWinner === null) {
+            alert('请先点击选中玩家');
+            return;
+        }
         const list = $('choose-list');
         list.innerHTML = '';
         gameState.players.forEach((name, i) => {
@@ -709,7 +747,10 @@ function bindEvents() {
 
     $('btn-angang').onclick = () => {
         vibrate();
-        if (!gameState.currentWinner) return alert('请先选中玩家');
+        if (gameState.currentWinner === null) {
+            alert('请先点击选中玩家');
+            return;
+        }
         handleGang('angang');
     };
 
