@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>川麻 V8</title>
+    <title>川麻 V9</title>
     <style>
         * {
             margin: 0;
@@ -184,15 +184,15 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: auto;
+            table-layout: fixed;
             min-width: 100%;
-            white-space: nowrap;
         }
         th, td {
             border: 1px solid rgba(255, 255, 255, 0.2);
             padding: 10px 8px;
             text-align: center;
             font-size: 16px;
+            white-space: nowrap;
         }
         th {
             background: rgba(0, 0, 0, 0.2);
@@ -248,11 +248,16 @@
             margin-bottom: 8px;
             display: block;
         }
+        .current-setting {
+            color: #facc15;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
 <div class="container">
-    <div class="title">川麻 V8</div>
+    <div class="title">川麻 V9</div>
     <div class="info-bar">
         <div>第 <span id="round-num">1</span> 局</div>
         <button class="setting-btn" id="setting-btn">底分: <span id="base-score">1</span> | 杠倍: <span id="gang-multi">明1/暗2</span></button>
@@ -321,6 +326,7 @@
         
         <div class="setting-item">
             <label class="setting-label">底分设置</label>
+            <div class="current-setting" id="current-base">当前底分：1</div>
             <div class="grid-3" style="margin-bottom: 8px;">
                 <button class="btn btn-green base-btn" data-score="1">1</button>
                 <button class="btn btn-green base-btn" data-score="5">5</button>
@@ -337,6 +343,7 @@
 
         <div class="setting-item">
             <label class="setting-label">明杠倍数（底分×倍数）</label>
+            <div class="current-setting" id="current-minggang">当前明杠：1倍</div>
             <div class="grid-3" style="margin-bottom: 8px;">
                 <button class="btn btn-blue minggang-btn" data-multi="1">1倍</button>
                 <button class="btn btn-blue minggang-btn" data-multi="2">2倍</button>
@@ -350,6 +357,7 @@
 
         <div class="setting-item">
             <label class="setting-label">暗杠倍数（底分×倍数）</label>
+            <div class="current-setting" id="current-angang">当前暗杠：2倍</div>
             <div class="grid-3" style="margin-bottom: 8px;">
                 <button class="btn btn-yellow angang-btn" data-multi="1">1倍</button>
                 <button class="btn btn-yellow angang-btn" data-multi="2">2倍</button>
@@ -378,7 +386,7 @@
 </div>
 
 <script>
-// 游戏状态
+// 游戏状态 + 本地存储
 let gameState = {
     players: ['北家', '西家', '东家', '南家'],
     baseScore: 1,
@@ -400,6 +408,26 @@ let gameState = {
 
 const $ = (id) => document.getElementById(id);
 
+// ===================== 1. 本地存储功能 =====================
+function saveGameState() {
+    localStorage.setItem('chuanma_game_state', JSON.stringify(gameState));
+}
+
+function loadGameState() {
+    const saved = localStorage.getItem('chuanma_game_state');
+    if (saved) {
+        gameState = JSON.parse(saved);
+    }
+}
+
+// ===================== 2. 设置弹窗显示当前配置 =====================
+function updateSettingDisplay() {
+    $('current-base').innerText = `当前底分：${gameState.baseScore}`;
+    $('current-minggang').innerText = `当前明杠：${gameState.gangMultiplier.minggang}倍`;
+    $('current-angang').innerText = `当前暗杠：${gameState.gangMultiplier.angang}倍`;
+}
+
+// ===================== 基础功能 =====================
 function vibrate(duration = 50) {
     if (navigator.vibrate) navigator.vibrate(duration);
 }
@@ -416,22 +444,13 @@ function addLongPress(el, callback, duration = 600) {
         }, duration);
     });
     el.addEventListener('pointermove', () => {
-        if (timer) {
-            clearTimeout(timer);
-            timer = null;
-        }
+        if (timer) clearTimeout(timer);
     });
     el.addEventListener('pointerup', () => {
-        if (timer) {
-            clearTimeout(timer);
-            timer = null;
-        }
+        if (timer) clearTimeout(timer);
     });
     el.addEventListener('pointercancel', () => {
-        if (timer) {
-            clearTimeout(timer);
-            timer = null;
-        }
+        if (timer) clearTimeout(timer);
     });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
 }
@@ -453,12 +472,14 @@ function saveState() {
         historyLogs: JSON.parse(JSON.stringify(gameState.historyLogs)),
         playersHu: [...gameState.playersHu]
     });
+    saveGameState(); // 自动保存
 }
 
 function getCurrentScores() {
     return gameState.roundScores[gameState.currentRound - 1];
 }
 
+// 渲染玩家
 function renderPlayers() {
     const container = $('players-container');
     container.innerHTML = '';
@@ -475,13 +496,9 @@ function renderPlayers() {
                 alert(`${name} 已胡牌，无法操作`);
                 return;
             }
-            if (gameState.currentWinner === i) {
-                clearPlayerActive();
-            } else {
-                clearPlayerActive();
-                gameState.currentWinner = i;
-                card.classList.add('active');
-            }
+            clearPlayerActive();
+            gameState.currentWinner = i;
+            card.classList.add('active');
         };
         addLongPress(card, () => {
             gameState.renamingPlayer = i;
@@ -495,6 +512,7 @@ function renderPlayers() {
     updateGangMultiDisplay();
 }
 
+// 渲染操作记录
 function renderHistory() {
     const logEl = $('history-log');
     logEl.innerHTML = '';
@@ -515,39 +533,43 @@ function renderHistory() {
     if (!logEl.innerHTML) logEl.innerHTML = '<div style="text-align:center;color:#a7f3d0;">暂无记录</div>';
 }
 
-// 总战绩表：最新局在最左，旧局在右
+// ===================== 3. 总战绩表格横竖翻转（新局在上） =====================
 function renderTotal() {
     const head = $('total-head');
     const body = $('total-body');
     
-    // 表头：最新局在最左，倒序排列
-    let headHtml = '<tr>';
-    headHtml += '<th>玩家</th>';
-    // 从最新局往第1局循环
-    for (let r = gameState.roundScores.length; r >= 1; r--) {
-        headHtml += `<th>第${r}局</th>`;
-    }
-    headHtml += '<th>总计</th>';
+    // 表头：4个玩家横向显示
+    let headHtml = '<tr><th>局数</th>';
+    gameState.players.forEach(name => {
+        headHtml += `<th>${name}</th>`;
+    });
     headHtml += '</tr>';
     head.innerHTML = headHtml;
 
-    // 表体：对应倒序的局数取数据
+    // 表体：局数纵向，新局在上，旧局在下
     let bodyHtml = '';
-    gameState.players.forEach((name, p) => {
+    // 倒序遍历：最新局 → 最旧局
+    for (let r = gameState.roundScores.length; r >= 1; r--) {
+        const roundIdx = r - 1;
+        const scores = gameState.roundScores[roundIdx];
+        let row = `<tr><td>第${r}局</td>`;
+        scores.forEach(score => {
+            row += `<td class="${score > 0 ? 'win' : score < 0 ? 'lose' : ''}">${score > 0 ? `+${score}` : score}</td>`;
+        });
+        row += '</tr>';
+        bodyHtml += row;
+    }
+
+    // 总计行（固定在底部）
+    let totalRow = '<tr style="background:rgba(0,0,0,0.3);font-weight:bold;"><td>总计</td>';
+    gameState.players.forEach((_, pIdx) => {
         let total = 0;
-        let rowHtml = '<tr>';
-        rowHtml += `<td>${name}</td>`;
-        // 同样倒序取每局数据
-        for (let r = gameState.roundScores.length; r >= 1; r--) {
-            const roundIndex = r - 1;
-            const score = gameState.roundScores[roundIndex][p];
-            total += score;
-            rowHtml += `<td class="${score > 0 ? 'win' : score < 0 ? 'lose' : ''}">${score > 0 ? `+${score}` : score}</td>`;
-        }
-        rowHtml += `<td class="${total > 0 ? 'win' : total < 0 ? 'lose' : ''}">${total > 0 ? `+${total}` : total}</td>`;
-        rowHtml += '</tr>';
-        bodyHtml += rowHtml;
+        gameState.roundScores.forEach(round => total += round[pIdx]);
+        totalRow += `<td class="${total > 0 ? 'win' : total < 0 ? 'lose' : ''}">${total > 0 ? `+${total}` : total}</td>`;
     });
+    totalRow += '</tr>';
+    bodyHtml += totalRow;
+
     body.innerHTML = bodyHtml;
 }
 
@@ -556,6 +578,7 @@ function showPanel(panelId) {
     $(panelId).classList.add('active');
 }
 
+// 胡牌逻辑
 function handleHu(fan, fanText) {
     saveState();
     const amount = gameState.baseScore * fan;
@@ -588,6 +611,7 @@ function handleHu(fan, fanText) {
     gameState.currentLoser = null;
 }
 
+// 杠牌逻辑
 function handleGang(type) {
     saveState();
     const ganger = gameState.currentWinner;
@@ -619,29 +643,27 @@ function handleGang(type) {
     gameState.currentLoser = null;
 }
 
+// 绑定所有事件
 function bindEvents() {
+    // 打开设置 + 显示当前配置
     $('setting-btn').onclick = () => {
         vibrate();
+        updateSettingDisplay();
         $('setting-modal').style.display = 'flex';
     };
 
-    // 自摸/点炮颜色已调换
+    // 自摸
     $('btn-zimo').onclick = () => {
         vibrate();
-        if (gameState.currentWinner === null) {
-            alert('请先点击选中玩家');
-            return;
-        }
+        if (!gameState.currentWinner) return alert('请先选中玩家');
         gameState.currentAction = 'zimo';
         showPanel('fan-panel');
     };
 
+    // 点炮
     $('btn-dianpao').onclick = () => {
         vibrate();
-        if (gameState.currentWinner === null) {
-            alert('请先点击选中玩家');
-            return;
-        }
+        if (!gameState.currentWinner) return alert('请先选中玩家');
         gameState.currentAction = 'dianpao';
         const list = $('choose-list');
         list.innerHTML = '';
@@ -662,12 +684,10 @@ function bindEvents() {
         showPanel('choose-panel');
     };
 
+    // 明杠/暗杠
     $('btn-minggang').onclick = () => {
         vibrate();
-        if (gameState.currentWinner === null) {
-            alert('请先点击选中玩家');
-            return;
-        }
+        if (!gameState.currentWinner) return alert('请先选中玩家');
         const list = $('choose-list');
         list.innerHTML = '';
         gameState.players.forEach((name, i) => {
@@ -689,71 +709,56 @@ function bindEvents() {
 
     $('btn-angang').onclick = () => {
         vibrate();
-        if (gameState.currentWinner === null) {
-            alert('请先点击选中玩家');
-            return;
-        }
+        if (!gameState.currentWinner) return alert('请先选中玩家');
         handleGang('angang');
     };
 
+    // 番数选择
     document.querySelectorAll('.fan-btn').forEach(btn => {
         btn.onclick = () => {
             vibrate();
-            const fan = parseInt(btn.dataset.fan);
-            handleHu(fan, `${fan}番`);
+            handleHu(parseInt(btn.dataset.fan), `${btn.dataset.fan}番`);
         };
     });
 
     $('btn-custom-fan').onclick = () => {
         vibrate();
         const fan = parseInt($('custom-fan').value);
-        if (isNaN(fan) || fan <= 0) {
-            alert('请输入有效番数');
-            return;
-        }
+        if (isNaN(fan) || fan <= 0) return alert('请输入有效番数');
         handleHu(fan, `${fan}番`);
         $('custom-fan').value = '';
     };
 
-    $('btn-cancel-fan').onclick = () => {
-        vibrate();
-        showPanel('main-panel');
-        gameState.currentAction = null;
-        gameState.currentLoser = null;
-    };
+    // 取消操作
+    $('btn-cancel-fan').onclick = () => { vibrate(); showPanel('main-panel'); };
+    $('btn-cancel-choose').onclick = () => { vibrate(); showPanel('main-panel'); };
 
-    $('btn-cancel-choose').onclick = () => {
-        vibrate();
-        showPanel('main-panel');
-        gameState.currentAction = null;
-        gameState.currentLoser = null;
-    };
-
+    // 撤销
     $('btn-undo').onclick = () => {
         vibrate();
-        if (gameState.stateHistory.length === 0) {
-            alert('无操作可撤销');
-            return;
-        }
-        if (!confirm('确定撤销上一步？')) return;
+        if (!gameState.stateHistory.length) return alert('无操作可撤销');
+        if (!confirm('确定撤销？')) return;
         const prev = gameState.stateHistory.pop();
         gameState.roundScores = prev.roundScores;
         gameState.historyLogs = prev.historyLogs;
         gameState.playersHu = prev.playersHu;
+        saveGameState();
         clearPlayerActive();
         renderPlayers();
         renderHistory();
         renderTotal();
     };
 
+    // 下一局
     $('btn-next-round').onclick = () => {
         vibrate();
-        if (!confirm('确定开始下一局？本局将锁定，无法修改')) return;
+        if (!confirm('确定下一局？本局锁定')) return;
         gameState.currentRound++;
-        gameState.roundScores.push([0, 0, 0, 0]);
+        gameState.roundScores.push([0,0,0,0]);
         gameState.historyLogs.push([]);
-        gameState.playersHu = [false, false, false, false];
+        gameState.playersHu = [false,false,false,false];
         gameState.stateHistory = [];
+        saveGameState();
         clearPlayerActive();
         renderPlayers();
         renderHistory();
@@ -761,119 +766,108 @@ function bindEvents() {
         showPanel('main-panel');
     };
 
+    // 重新开始
     $('btn-reset').onclick = () => {
         vibrate();
-        if (!confirm('确定清空所有记录？')) return;
+        if (!confirm('确定清空所有数据？')) return;
         gameState = {
             players: gameState.players,
-            baseScore: gameState.baseScore,
-            gangMultiplier: gameState.gangMultiplier,
-            currentRound: 1,
-            roundScores: [[0, 0, 0, 0]],
-            historyLogs: [[]],
-            stateHistory: [],
-            playersHu: [false, false, false, false],
-            currentAction: null,
-            currentWinner: null,
-            currentLoser: null,
-            renamingPlayer: null,
-            playerClass: ['player-north', 'player-west', 'player-east', 'player-south']
+            baseScore: 1,
+            gangMultiplier: {minggang:1, angang:2},
+            currentRound:1, roundScores:[[0,0,0,0]], historyLogs:[[]], stateHistory:[],
+            playersHu:[false,false,false,false], currentAction:null, currentWinner:null, currentLoser:null,
+            renamingPlayer:null, playerClass:['player-north','player-west','player-east','player-south']
         };
+        saveGameState();
         clearPlayerActive();
         renderPlayers();
         renderHistory();
         renderTotal();
-        showPanel('main-panel');
     };
 
+    // 设置相关
     document.querySelectorAll('.base-btn').forEach(btn => {
         btn.onclick = () => {
             vibrate();
             gameState.baseScore = parseInt(btn.dataset.score);
+            updateSettingDisplay();
+            saveGameState();
             renderPlayers();
         };
     });
-
     $('btn-custom-base').onclick = () => {
         vibrate();
-        const score = parseInt($('custom-base').value);
-        if (isNaN(score) || score <= 0) {
-            alert('请输入有效底分');
-            return;
-        }
-        gameState.baseScore = score;
+        const s = parseInt($('custom-base').value);
+        if (isNaN(s) || s<=0) return alert('无效');
+        gameState.baseScore = s;
+        updateSettingDisplay();
+        saveGameState();
         renderPlayers();
-        $('custom-base').value = '';
+        $('custom-base').value='';
     };
 
     document.querySelectorAll('.minggang-btn').forEach(btn => {
         btn.onclick = () => {
             vibrate();
             gameState.gangMultiplier.minggang = parseInt(btn.dataset.multi);
+            updateSettingDisplay();
+            saveGameState();
             updateGangMultiDisplay();
         };
     });
-
     $('btn-custom-minggang').onclick = () => {
         vibrate();
-        const multi = parseFloat($('custom-minggang').value);
-        if (isNaN(multi) || multi < 0) {
-            alert('请输入有效倍数');
-            return;
-        }
-        gameState.gangMultiplier.minggang = multi;
+        const m = parseFloat($('custom-minggang').value);
+        if (isNaN(m) || m<0) return alert('无效');
+        gameState.gangMultiplier.minggang = m;
+        updateSettingDisplay();
+        saveGameState();
         updateGangMultiDisplay();
-        $('custom-minggang').value = '';
+        $('custom-minggang').value='';
     };
 
     document.querySelectorAll('.angang-btn').forEach(btn => {
         btn.onclick = () => {
             vibrate();
             gameState.gangMultiplier.angang = parseInt(btn.dataset.multi);
+            updateSettingDisplay();
+            saveGameState();
             updateGangMultiDisplay();
         };
     });
-
     $('btn-custom-angang').onclick = () => {
         vibrate();
-        const multi = parseFloat($('custom-angang').value);
-        if (isNaN(multi) || multi < 0) {
-            alert('请输入有效倍数');
-            return;
-        }
-        gameState.gangMultiplier.angang = multi;
+        const m = parseFloat($('custom-angang').value);
+        if (isNaN(m) || m<0) return alert('无效');
+        gameState.gangMultiplier.angang = m;
+        updateSettingDisplay();
+        saveGameState();
         updateGangMultiDisplay();
-        $('custom-angang').value = '';
+        $('custom-angang').value='';
     };
 
-    $('btn-close-setting').onclick = () => {
-        vibrate();
-        $('setting-modal').style.display = 'none';
-    };
-
+    // 弹窗关闭
+    $('btn-close-setting').onclick = () => { vibrate(); $('setting-modal').style.display='none'; };
     $('btn-confirm-rename').onclick = () => {
         vibrate();
         const name = $('rename-input').value.trim();
-        if (!name) {
-            alert('请输入名字');
-            return;
-        }
+        if (!name) return alert('请输入名字');
         gameState.players[gameState.renamingPlayer] = name;
+        saveGameState();
         renderPlayers();
         renderTotal();
-        $('rename-modal').style.display = 'none';
+        $('rename-modal').style.display='none';
     };
+    $('btn-cancel-rename').onclick = () => { vibrate(); $('rename-modal').style.display='none'; };
 
-    $('btn-cancel-rename').onclick = () => {
-        vibrate();
-        $('rename-modal').style.display = 'none';
-    };
-
-    $('setting-modal').onclick = (e) => e.target === $('setting-modal') && ($('setting-modal').style.display = 'none');
-    $('rename-modal').onclick = (e) => e.target === $('rename-modal') && ($('rename-modal').style.display = 'none');
+    // 点击空白关闭弹窗
+    $('setting-modal').onclick = e => e.target === $('setting-modal') && ($('setting-modal').style.display='none');
+    $('rename-modal').onclick = e => e.target === $('rename-modal') && ($('rename-modal').style.display='none');
 }
 
+// 初始化
 function init() {
+    loadGameState();  // 加载本地存储
     bindEvents();
     renderPlayers();
     renderHistory();
