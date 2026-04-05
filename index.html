@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>川麻 V10</title>
+    <meta name="apple-web-app-capable" content="yes">
+    <title>川麻 V12</title>
     <style>
         * {
             margin: 0;
@@ -70,7 +70,6 @@
             transition: all 0.2s;
             cursor: pointer;
             border: 3px solid transparent;
-            /* 确保点击区域覆盖整个卡片 */
             pointer-events: auto;
         }
         /* 四个玩家方位 */
@@ -95,14 +94,12 @@
             overflow: hidden;
             text-overflow: ellipsis;
             max-width: 100%;
-            /* 子元素不拦截点击事件 */
             pointer-events: none;
         }
         .player-score {
             font-size: 28px;
             font-weight: bold;
             color: #4ade80;
-            /* 子元素不拦截点击事件 */
             pointer-events: none;
         }
         .player-card.hu .player-score {
@@ -111,8 +108,8 @@
         .btn {
             border: none;
             border-radius: 12px;
-            padding: 16px;
-            font-size: 18px;
+            padding: 14px;
+            font-size: 17px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
@@ -125,6 +122,7 @@
         .btn-red { background: #ef4444; }
         .btn-blue { background: #3b82f6; }
         .btn-yellow { background: #eab308; }
+        .btn-purple { background: #8b5cf6; }
         .btn-gray { background: #6b7280; }
 
         /* 番数按钮渐变配色 */
@@ -263,21 +261,26 @@
 </head>
 <body>
 <div class="container">
-    <div class="title">川麻 V10</div>
+    <div class="title">川麻 V12</div>
     <div class="info-bar">
         <div>第 <span id="round-num">1</span> 局</div>
-        <button class="setting-btn" id="setting-btn">底分: <span id="base-score">1</span> | 杠倍: <span id="gang-multi">明1/暗2</span></button>
+        <button class="setting-btn" id="setting-btn">底分: <span id="base-score">1</span> | 杠倍: <span id="gang-multi">暗2/点2/明1</span></button>
     </div>
 
     <!-- 回字形玩家布局 -->
     <div class="players-container" id="players-container"></div>
 
     <div class="panel active" id="main-panel">
-        <div class="grid-2">
+        <!-- 第一排：自摸、点炮 -->
+        <div class="grid-2" style="margin-bottom: 8px;">
             <button class="btn btn-red" id="btn-zimo">自摸</button>
             <button class="btn btn-green" id="btn-dianpao">点炮</button>
-            <button class="btn btn-blue" id="btn-minggang">明杠</button>
+        </div>
+        <!-- 第二排：三个杠牌按钮（同一排） -->
+        <div class="grid-3">
             <button class="btn btn-yellow" id="btn-angang">暗杠</button>
+            <button class="btn btn-blue" id="btn-diangang">点杠</button>
+            <button class="btn btn-purple" id="btn-minggang">明杠</button>
         </div>
     </div>
 
@@ -348,20 +351,6 @@
         </div>
 
         <div class="setting-item">
-            <label class="setting-label">明杠倍数（底分×倍数）</label>
-            <div class="current-setting" id="current-minggang">当前明杠：1倍</div>
-            <div class="grid-3" style="margin-bottom: 8px;">
-                <button class="btn btn-blue minggang-btn" data-multi="1">1倍</button>
-                <button class="btn btn-blue minggang-btn" data-multi="2">2倍</button>
-                <button class="btn btn-blue minggang-btn" data-multi="3">3倍</button>
-            </div>
-            <div class="grid-2">
-                <input type="number" class="input-box" id="custom-minggang" placeholder="自定义倍数">
-                <button class="btn btn-blue" id="btn-custom-minggang">确定</button>
-            </div>
-        </div>
-
-        <div class="setting-item">
             <label class="setting-label">暗杠倍数（底分×倍数）</label>
             <div class="current-setting" id="current-angang">当前暗杠：2倍</div>
             <div class="grid-3" style="margin-bottom: 8px;">
@@ -372,6 +361,34 @@
             <div class="grid-2">
                 <input type="number" class="input-box" id="custom-angang" placeholder="自定义倍数">
                 <button class="btn btn-yellow" id="btn-custom-angang">确定</button>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label class="setting-label">点杠倍数（底分×倍数）</label>
+            <div class="current-setting" id="current-diangang">当前点杠：2倍</div>
+            <div class="grid-3" style="margin-bottom: 8px;">
+                <button class="btn btn-blue diangang-btn" data-multi="1">1倍</button>
+                <button class="btn btn-blue diangang-btn" data-multi="2">2倍</button>
+                <button class="btn btn-blue diangang-btn" data-multi="3">3倍</button>
+            </div>
+            <div class="grid-2">
+                <input type="number" class="input-box" id="custom-diangang" placeholder="自定义倍数">
+                <button class="btn btn-blue" id="btn-custom-diangang">确定</button>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label class="setting-label">明杠倍数（底分×倍数）</label>
+            <div class="current-setting" id="current-minggang">当前明杠：1倍</div>
+            <div class="grid-3" style="margin-bottom: 8px;">
+                <button class="btn btn-purple minggang-btn" data-multi="1">1倍</button>
+                <button class="btn btn-purple minggang-btn" data-multi="2">2倍</button>
+                <button class="btn btn-purple minggang-btn" data-multi="3">3倍</button>
+            </div>
+            <div class="grid-2">
+                <input type="number" class="input-box" id="custom-minggang" placeholder="自定义倍数">
+                <button class="btn btn-purple" id="btn-custom-minggang">确定</button>
             </div>
         </div>
 
@@ -396,9 +413,11 @@
 let gameState = {
     players: ['北家', '西家', '东家', '南家'],
     baseScore: 1,
+    // 按你要求的杠牌倍数
     gangMultiplier: {
-        minggang: 1,
-        angang: 2
+        angang: 2,     // 暗杠：2倍，在场所有人出
+        diangang: 2,   // 点杠：2倍，打出第四张的人出
+        minggang: 1    // 明杠：1倍，在场所有人出
     },
     currentRound: 1,
     roundScores: [[0, 0, 0, 0]],
@@ -429,8 +448,14 @@ function loadGameState() {
 // ===================== 设置弹窗显示当前配置 =====================
 function updateSettingDisplay() {
     $('current-base').innerText = `当前底分：${gameState.baseScore}`;
-    $('current-minggang').innerText = `当前明杠：${gameState.gangMultiplier.minggang}倍`;
     $('current-angang').innerText = `当前暗杠：${gameState.gangMultiplier.angang}倍`;
+    $('current-diangang').innerText = `当前点杠：${gameState.gangMultiplier.diangang}倍`;
+    $('current-minggang').innerText = `当前明杠：${gameState.gangMultiplier.minggang}倍`;
+}
+
+// 更新顶部杠倍数显示
+function updateGangMultiDisplay() {
+    $('gang-multi').innerText = `暗${gameState.gangMultiplier.angang}/点${gameState.gangMultiplier.diangang}/明${gameState.gangMultiplier.minggang}`;
 }
 
 // ===================== 基础功能 =====================
@@ -468,10 +493,6 @@ function clearPlayerActive() {
     gameState.currentWinner = null;
 }
 
-function updateGangMultiDisplay() {
-    $('gang-multi').innerText = `明${gameState.gangMultiplier.minggang}/暗${gameState.gangMultiplier.angang}`;
-}
-
 function saveState() {
     gameState.stateHistory.push({
         roundScores: JSON.parse(JSON.stringify(gameState.roundScores)),
@@ -492,7 +513,7 @@ function renderPlayers() {
     gameState.players.forEach((name, i) => {
         const card = document.createElement('div');
         card.className = `player-card ${gameState.playerClass[i]} ${gameState.playersHu[i] ? 'hu' : ''} ${gameState.currentWinner === i ? 'active' : ''}`;
-        card.dataset.index = i; // 存储玩家索引
+        card.dataset.index = i;
         card.innerHTML = `
             <div class="player-name">${name}</div>
             <div class="player-score">${getCurrentScores()[i]}</div>
@@ -510,11 +531,10 @@ function renderPlayers() {
     updateGangMultiDisplay();
 }
 
-// ===================== 核心修复：事件委托处理玩家点击 =====================
+// ===================== 事件委托处理玩家点击 =====================
 function initPlayerClickHandler() {
     const container = $('players-container');
     container.addEventListener('click', (e) => {
-        // 找到最近的玩家卡片
         const card = e.target.closest('.player-card');
         if (!card) return;
         
@@ -527,7 +547,6 @@ function initPlayerClickHandler() {
             return;
         }
         
-        // 切换选中状态
         if (gameState.currentWinner === playerIndex) {
             clearPlayerActive();
         } else {
@@ -574,7 +593,6 @@ function renderTotal() {
 
     // 表体：局数纵向，新局在上，旧局在下
     let bodyHtml = '';
-    // 倒序遍历：最新局 → 最旧局
     for (let r = gameState.roundScores.length; r >= 1; r--) {
         const roundIdx = r - 1;
         const scores = gameState.roundScores[roundIdx];
@@ -586,7 +604,7 @@ function renderTotal() {
         bodyHtml += row;
     }
 
-    // 总计行（固定在底部）
+    // 总计行
     let totalRow = '<tr style="background:rgba(0,0,0,0.3);font-weight:bold;"><td>总计</td>';
     gameState.players.forEach((_, pIdx) => {
         let total = 0;
@@ -637,28 +655,46 @@ function handleHu(fan, fanText) {
     gameState.currentLoser = null;
 }
 
-// 杠牌逻辑
+// ===================== 按你要求修改的杠牌逻辑 =====================
 function handleGang(type) {
     saveState();
     const ganger = gameState.currentWinner;
-    const multi = type === 'minggang' ? gameState.gangMultiplier.minggang : gameState.gangMultiplier.angang;
-    const amount = gameState.baseScore * multi;
+    let multi, amount, currentLog = gameState.historyLogs[gameState.currentRound - 1];
     const currentScores = getCurrentScores();
-    const currentLog = gameState.historyLogs[gameState.currentRound - 1];
 
-    if (type === 'angang') {
-        for (let i = 0; i < 4; i++) {
-            if (i !== ganger && !gameState.playersHu[i]) {
-                currentScores[i] -= amount;
-                currentScores[ganger] += amount;
+    switch(type) {
+        case 'angang': // 暗杠：2倍，所有未胡玩家出
+            multi = gameState.gangMultiplier.angang;
+            amount = gameState.baseScore * multi;
+            for (let i = 0; i < 4; i++) {
+                if (i !== ganger && !gameState.playersHu[i]) {
+                    currentScores[i] -= amount;
+                    currentScores[ganger] += amount;
+                }
             }
-        }
-        currentLog.push(`${gameState.players[ganger]} 暗杠，每人-${amount}元`);
-    } else if (type === 'minggang') {
-        const loser = gameState.currentLoser;
-        currentScores[loser] -= amount;
-        currentScores[ganger] += amount;
-        currentLog.push(`${gameState.players[loser]} 点杠给 ${gameState.players[ganger]}，-${amount}元`);
+            currentLog.push(`${gameState.players[ganger]} 暗杠，每人-${amount}元`);
+            break;
+            
+        case 'diangang': // 点杠：2倍，只有点杠人出
+            multi = gameState.gangMultiplier.diangang;
+            amount = gameState.baseScore * multi;
+            const loser = gameState.currentLoser;
+            currentScores[loser] -= amount;
+            currentScores[ganger] += amount;
+            currentLog.push(`${gameState.players[loser]} 点杠给 ${gameState.players[ganger]}，-${amount}元`);
+            break;
+            
+        case 'minggang': // 明杠：1倍，所有未胡玩家出
+            multi = gameState.gangMultiplier.minggang;
+            amount = gameState.baseScore * multi;
+            for (let i = 0; i < 4; i++) {
+                if (i !== ganger && !gameState.playersHu[i]) {
+                    currentScores[i] -= amount;
+                    currentScores[ganger] += amount;
+                }
+            }
+            currentLog.push(`${gameState.players[ganger]} 明杠，每人-${amount}元`);
+            break;
     }
 
     clearPlayerActive();
@@ -719,8 +755,18 @@ function bindEvents() {
         showPanel('choose-panel');
     };
 
-    // 明杠/暗杠
-    $('btn-minggang').onclick = () => {
+    // 暗杠
+    $('btn-angang').onclick = () => {
+        vibrate();
+        if (gameState.currentWinner === null) {
+            alert('请先点击选中玩家');
+            return;
+        }
+        handleGang('angang');
+    };
+
+    // 点杠
+    $('btn-diangang').onclick = () => {
         vibrate();
         if (gameState.currentWinner === null) {
             alert('请先点击选中玩家');
@@ -736,7 +782,7 @@ function bindEvents() {
                 btn.onclick = () => {
                     vibrate();
                     gameState.currentLoser = i;
-                    handleGang('minggang');
+                    handleGang('diangang');
                 };
                 list.appendChild(btn);
             }
@@ -745,13 +791,14 @@ function bindEvents() {
         showPanel('choose-panel');
     };
 
-    $('btn-angang').onclick = () => {
+    // 明杠
+    $('btn-minggang').onclick = () => {
         vibrate();
         if (gameState.currentWinner === null) {
             alert('请先点击选中玩家');
             return;
         }
-        handleGang('angang');
+        handleGang('minggang');
     };
 
     // 番数选择
@@ -814,7 +861,7 @@ function bindEvents() {
         gameState = {
             players: gameState.players,
             baseScore: 1,
-            gangMultiplier: {minggang:1, angang:2},
+            gangMultiplier: {angang:2, diangang:2, minggang:1},
             currentRound:1, roundScores:[[0,0,0,0]], historyLogs:[[]], stateHistory:[],
             playersHu:[false,false,false,false], currentAction:null, currentWinner:null, currentLoser:null,
             renamingPlayer:null, playerClass:['player-north','player-west','player-east','player-south']
@@ -847,26 +894,7 @@ function bindEvents() {
         $('custom-base').value='';
     };
 
-    document.querySelectorAll('.minggang-btn').forEach(btn => {
-        btn.onclick = () => {
-            vibrate();
-            gameState.gangMultiplier.minggang = parseInt(btn.dataset.multi);
-            updateSettingDisplay();
-            saveGameState();
-            updateGangMultiDisplay();
-        };
-    });
-    $('btn-custom-minggang').onclick = () => {
-        vibrate();
-        const m = parseFloat($('custom-minggang').value);
-        if (isNaN(m) || m<0) return alert('无效');
-        gameState.gangMultiplier.minggang = m;
-        updateSettingDisplay();
-        saveGameState();
-        updateGangMultiDisplay();
-        $('custom-minggang').value='';
-    };
-
+    // 暗杠倍数
     document.querySelectorAll('.angang-btn').forEach(btn => {
         btn.onclick = () => {
             vibrate();
@@ -885,6 +913,48 @@ function bindEvents() {
         saveGameState();
         updateGangMultiDisplay();
         $('custom-angang').value='';
+    };
+
+    // 点杠倍数
+    document.querySelectorAll('.diangang-btn').forEach(btn => {
+        btn.onclick = () => {
+            vibrate();
+            gameState.gangMultiplier.diangang = parseInt(btn.dataset.multi);
+            updateSettingDisplay();
+            saveGameState();
+            updateGangMultiDisplay();
+        };
+    });
+    $('btn-custom-diangang').onclick = () => {
+        vibrate();
+        const m = parseFloat($('custom-diangang').value);
+        if (isNaN(m) || m<0) return alert('无效');
+        gameState.gangMultiplier.diangang = m;
+        updateSettingDisplay();
+        saveGameState();
+        updateGangMultiDisplay();
+        $('custom-diangang').value='';
+    };
+
+    // 明杠倍数
+    document.querySelectorAll('.minggang-btn').forEach(btn => {
+        btn.onclick = () => {
+            vibrate();
+            gameState.gangMultiplier.minggang = parseInt(btn.dataset.multi);
+            updateSettingDisplay();
+            saveGameState();
+            updateGangMultiDisplay();
+        };
+    });
+    $('btn-custom-minggang').onclick = () => {
+        vibrate();
+        const m = parseFloat($('custom-minggang').value);
+        if (isNaN(m) || m<0) return alert('无效');
+        gameState.gangMultiplier.minggang = m;
+        updateSettingDisplay();
+        saveGameState();
+        updateGangMultiDisplay();
+        $('custom-minggang').value='';
     };
 
     // 弹窗关闭
@@ -908,7 +978,7 @@ function bindEvents() {
 
 // 初始化
 function init() {
-    loadGameState();  // 加载本地存储
+    loadGameState();
     bindEvents();
     renderPlayers();
     renderHistory();
