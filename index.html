@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-web-app-capable" content="yes">
-    <title>川麻 V14</title>
+    <title>川麻 V15</title>
     <style>
         * {
             margin: 0;
@@ -48,6 +48,22 @@
             border: none;
             font-size: 18px;
             cursor: pointer;
+        }
+        /* 本局结束提示 */
+        .game-end-notice {
+            background: linear-gradient(135deg, #facc15, #f59e0b);
+            color: #1f2937;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 16px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
         }
         /* 回字形九宫格布局 */
         .players-container {
@@ -128,6 +144,11 @@
         }
         .btn:active {
             transform: scale(0.95);
+        }
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
         }
         .btn-green { background: #10b981; }
         .btn-red { background: #ef4444; }
@@ -276,10 +297,15 @@
 </head>
 <body>
 <div class="container">
-    <div class="title">川麻 V14</div>
+    <div class="title">川麻 V15</div>
     <div class="info-bar">
         <div>第 <span id="round-num">1</span> 局</div>
         <button class="setting-btn" id="setting-btn">底分: <span id="base-score">1</span> | 杠倍: <span id="gang-multi">暗2/点2/明1</span></button>
+    </div>
+
+    <!-- 本局结束提示（默认隐藏） -->
+    <div class="game-end-notice" id="game-end-notice" style="display: none;">
+        🎉 本局已结束！已有三家胡牌，请点击「下一局」开始新局
     </div>
 
     <!-- 回字形玩家布局 -->
@@ -491,6 +517,32 @@ function unlockPlayerSelection() {
     });
 }
 
+// ===================== 三家胡牌检查与处理 =====================
+function checkThreePlayersHu() {
+    const huCount = gameState.playersHu.filter(hu => hu).length;
+    const isGameEnd = huCount >= 3;
+    
+    // 显示/隐藏结束提示
+    $('game-end-notice').style.display = isGameEnd ? 'block' : 'none';
+    
+    // 禁用/启用所有操作按钮
+    const actionButtons = [
+        'btn-zimo', 'btn-dianpao', 
+        'btn-angang', 'btn-diangang', 'btn-minggang'
+    ];
+    
+    actionButtons.forEach(btnId => {
+        $(btnId).disabled = isGameEnd;
+    });
+    
+    // 如果游戏结束，解锁玩家选择（但按钮已禁用）
+    if (isGameEnd) {
+        unlockPlayerSelection();
+    }
+    
+    return isGameEnd;
+}
+
 // ===================== 基础功能 =====================
 function vibrate(duration = 50) {
     if (navigator.vibrate) navigator.vibrate(duration);
@@ -569,6 +621,9 @@ function renderPlayers() {
     $('round-num').textContent = gameState.currentRound;
     $('base-score').textContent = gameState.baseScore;
     updateGangMultiDisplay();
+    
+    // 检查是否三家胡牌
+    checkThreePlayersHu();
 }
 
 // ===================== 事件委托处理玩家点击 =====================
@@ -577,6 +632,9 @@ function initPlayerClickHandler() {
     container.addEventListener('click', (e) => {
         // 锁定状态下不允许点击玩家
         if (gameState.playerSelectionLocked) return;
+        
+        // 三家胡牌后不允许点击玩家进行操作
+        if (checkThreePlayersHu()) return;
         
         const card = e.target.closest('.player-card');
         if (!card) return;
@@ -771,6 +829,10 @@ function bindEvents() {
     // 自摸
     $('btn-zimo').onclick = () => {
         vibrate();
+        if (checkThreePlayersHu()) {
+            alert('本局已结束！已有三家胡牌，请点击「下一局」开始新局');
+            return;
+        }
         if (gameState.currentPlayer === null) {
             alert('请先点击选中自摸的玩家');
             return;
@@ -782,6 +844,10 @@ function bindEvents() {
     // ===================== 点炮逻辑（带玩家锁定） =====================
     $('btn-dianpao').onclick = () => {
         vibrate();
+        if (checkThreePlayersHu()) {
+            alert('本局已结束！已有三家胡牌，请点击「下一局」开始新局');
+            return;
+        }
         if (gameState.currentPlayer === null) {
             alert('请先点击选中点炮的玩家');
             return;
@@ -810,6 +876,10 @@ function bindEvents() {
     // 暗杠
     $('btn-angang').onclick = () => {
         vibrate();
+        if (checkThreePlayersHu()) {
+            alert('本局已结束！已有三家胡牌，请点击「下一局」开始新局');
+            return;
+        }
         if (gameState.currentPlayer === null) {
             alert('请先点击选中暗杠的玩家');
             return;
@@ -820,6 +890,10 @@ function bindEvents() {
     // ===================== 点杠逻辑（带玩家锁定） =====================
     $('btn-diangang').onclick = () => {
         vibrate();
+        if (checkThreePlayersHu()) {
+            alert('本局已结束！已有三家胡牌，请点击「下一局」开始新局');
+            return;
+        }
         if (gameState.currentPlayer === null) {
             alert('请先点击选中点杠的玩家');
             return;
@@ -847,6 +921,10 @@ function bindEvents() {
     // 明杠
     $('btn-minggang').onclick = () => {
         vibrate();
+        if (checkThreePlayersHu()) {
+            alert('本局已结束！已有三家胡牌，请点击「下一局」开始新局');
+            return;
+        }
         if (gameState.currentPlayer === null) {
             alert('请先点击选中明杠的玩家');
             return;
