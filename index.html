@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-web-app-capable" content="yes">
-    <title>川麻 V13</title>
+    <title>川麻 V14</title>
     <style>
         * {
             margin: 0;
@@ -71,6 +71,17 @@
             cursor: pointer;
             border: 3px solid transparent;
             pointer-events: auto;
+        }
+        /* 玩家选择锁定状态 */
+        .player-card.locked {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        /* 已选中的玩家在锁定状态下保持高亮 */
+        .player-card.active.locked {
+            opacity: 1;
+            pointer-events: none;
         }
         /* 四个玩家方位 */
         .player-north { grid-column: 2 / 3; grid-row: 1 / 2; }
@@ -265,7 +276,7 @@
 </head>
 <body>
 <div class="container">
-    <div class="title">川麻 V13</div>
+    <div class="title">川麻 V14</div>
     <div class="info-bar">
         <div>第 <span id="round-num">1</span> 局</div>
         <button class="setting-btn" id="setting-btn">底分: <span id="base-score">1</span> | 杠倍: <span id="gang-multi">暗2/点2/明1</span></button>
@@ -430,10 +441,10 @@ let gameState = {
     playersHu: [false, false, false, false],
     currentAction: null,
     currentPlayer: null, // 通用当前选中玩家
-    currentLoser: null,  // 点炮/点杠的人
     currentWinner: null, // 胡牌/杠牌的人
     renamingPlayer: null,
-    playerClass: ['player-north', 'player-west', 'player-east', 'player-south']
+    playerClass: ['player-north', 'player-west', 'player-east', 'player-south'],
+    playerSelectionLocked: false // 玩家选择锁定状态
 };
 
 const $ = (id) => document.getElementById(id);
@@ -461,6 +472,23 @@ function updateSettingDisplay() {
 // 更新顶部杠倍数显示
 function updateGangMultiDisplay() {
     $('gang-multi').innerText = `暗${gameState.gangMultiplier.angang}/点${gameState.gangMultiplier.diangang}/明${gameState.gangMultiplier.minggang}`;
+}
+
+// ===================== 玩家选择锁定/解锁 =====================
+function lockPlayerSelection() {
+    gameState.playerSelectionLocked = true;
+    document.querySelectorAll('.player-card').forEach(card => {
+        if (!card.classList.contains('active')) {
+            card.classList.add('locked');
+        }
+    });
+}
+
+function unlockPlayerSelection() {
+    gameState.playerSelectionLocked = false;
+    document.querySelectorAll('.player-card').forEach(card => {
+        card.classList.remove('locked');
+    });
 }
 
 // ===================== 基础功能 =====================
@@ -517,7 +545,12 @@ function renderPlayers() {
     container.innerHTML = '';
     gameState.players.forEach((name, i) => {
         const card = document.createElement('div');
-        card.className = `player-card ${gameState.playerClass[i]} ${gameState.playersHu[i] ? 'hu' : ''} ${gameState.currentPlayer === i ? 'active' : ''}`;
+        let classes = `player-card ${gameState.playerClass[i]} ${gameState.playersHu[i] ? 'hu' : ''} ${gameState.currentPlayer === i ? 'active' : ''}`;
+        // 锁定状态下，非选中玩家添加locked类
+        if (gameState.playerSelectionLocked && gameState.currentPlayer !== i) {
+            classes += ' locked';
+        }
+        card.className = classes;
         card.dataset.index = i;
         card.innerHTML = `
             <div class="player-name">${name}</div>
@@ -525,6 +558,8 @@ function renderPlayers() {
         `;
         // 长按改名
         addLongPress(card, () => {
+            // 锁定状态下不允许改名
+            if (gameState.playerSelectionLocked) return;
             gameState.renamingPlayer = i;
             $('rename-input').value = name;
             $('rename-modal').style.display = 'flex';
@@ -540,6 +575,9 @@ function renderPlayers() {
 function initPlayerClickHandler() {
     const container = $('players-container');
     container.addEventListener('click', (e) => {
+        // 锁定状态下不允许点击玩家
+        if (gameState.playerSelectionLocked) return;
+        
         const card = e.target.closest('.player-card');
         if (!card) return;
         
@@ -655,6 +693,7 @@ function handleHu(fan, fanText) {
         gameState.playersHu[winner] = true;
     }
 
+    unlockPlayerSelection(); // 操作完成解锁
     clearPlayerActive();
     renderPlayers();
     renderHistory();
@@ -708,6 +747,7 @@ function handleGang(type) {
             break;
     }
 
+    unlockPlayerSelection(); // 操作完成解锁
     clearPlayerActive();
     renderPlayers();
     renderHistory();
@@ -739,7 +779,7 @@ function bindEvents() {
         showPanel('fan-panel');
     };
 
-    // ===================== 反转后的点炮逻辑 =====================
+    // ===================== 点炮逻辑（带玩家锁定） =====================
     $('btn-dianpao').onclick = () => {
         vibrate();
         if (gameState.currentPlayer === null) {
@@ -747,6 +787,7 @@ function bindEvents() {
             return;
         }
         gameState.currentAction = 'dianpao';
+        lockPlayerSelection(); // 锁定玩家选择
         const list = $('choose-list');
         list.innerHTML = '';
         gameState.players.forEach((name, i) => {
@@ -776,13 +817,14 @@ function bindEvents() {
         handleGang('angang');
     };
 
-    // 点杠
+    // ===================== 点杠逻辑（带玩家锁定） =====================
     $('btn-diangang').onclick = () => {
         vibrate();
         if (gameState.currentPlayer === null) {
             alert('请先点击选中点杠的玩家');
             return;
         }
+        lockPlayerSelection(); // 锁定玩家选择
         const list = $('choose-list');
         list.innerHTML = '';
         gameState.players.forEach((name, i) => {
@@ -828,9 +870,17 @@ function bindEvents() {
         $('custom-fan').value = '';
     };
 
-    // 取消操作
-    $('btn-cancel-fan').onclick = () => { vibrate(); showPanel('main-panel'); };
-    $('btn-cancel-choose').onclick = () => { vibrate(); showPanel('main-panel'); };
+    // 取消操作（解锁玩家）
+    $('btn-cancel-fan').onclick = () => { 
+        vibrate(); 
+        unlockPlayerSelection(); // 取消时解锁
+        showPanel('main-panel'); 
+    };
+    $('btn-cancel-choose').onclick = () => { 
+        vibrate(); 
+        unlockPlayerSelection(); // 取消时解锁
+        showPanel('main-panel'); 
+    };
 
     // 撤销
     $('btn-undo').onclick = () => {
@@ -842,6 +892,7 @@ function bindEvents() {
         gameState.historyLogs = prev.historyLogs;
         gameState.playersHu = prev.playersHu;
         saveGameState();
+        unlockPlayerSelection(); // 撤销时确保解锁
         clearPlayerActive();
         renderPlayers();
         renderHistory();
@@ -858,6 +909,7 @@ function bindEvents() {
         gameState.playersHu = [false,false,false,false];
         gameState.stateHistory = [];
         saveGameState();
+        unlockPlayerSelection(); // 下一局时确保解锁
         clearPlayerActive();
         renderPlayers();
         renderHistory();
@@ -875,8 +927,9 @@ function bindEvents() {
             gangMultiplier: {angang:2, diangang:2, minggang:1},
             currentRound:1, roundScores:[[0,0,0,0]], historyLogs:[[]], stateHistory:[],
             playersHu:[false,false,false,false], currentAction:null, currentPlayer:null,
-            currentWinner:null, currentLoser:null, renamingPlayer:null,
-            playerClass:['player-north','player-west','player-east','player-south']
+            currentWinner:null, renamingPlayer:null,
+            playerClass:['player-north','player-west','player-east','player-south'],
+            playerSelectionLocked: false
         };
         saveGameState();
         clearPlayerActive();
