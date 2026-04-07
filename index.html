@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-web-app-capable" content="yes">
-    <title>川麻 V15</title>
+    <title>川麻 V16</title>
     <style>
         * {
             margin: 0;
@@ -297,7 +297,7 @@
 </head>
 <body>
 <div class="container">
-    <div class="title">川麻 V15</div>
+    <div class="title">川麻 V16</div>
     <div class="info-bar">
         <div>第 <span id="round-num">1</span> 局</div>
         <button class="setting-btn" id="setting-btn">底分: <span id="base-score">1</span> | 杠倍: <span id="gang-multi">暗2/点2/明1</span></button>
@@ -437,11 +437,11 @@
     </div>
 </div>
 
-<!-- 玩家改名弹窗 -->
+<!-- 玩家改名弹窗（输入框限制4字） -->
 <div class="modal" id="rename-modal">
     <div class="modal-content">
-        <div class="modal-title">修改玩家名字</div>
-        <input type="text" class="input-box" id="rename-input" placeholder="输入名字">
+        <div class="modal-title">修改玩家名字（最多4字）</div>
+        <input type="text" class="input-box" id="rename-input" placeholder="输入名字" maxlength="4">
         <div class="grid-2">
             <button class="btn btn-green" id="btn-confirm-rename">确定</button>
             <button class="btn btn-gray" id="btn-cancel-rename">取消</button>
@@ -475,6 +475,11 @@ let gameState = {
 
 const $ = (id) => document.getElementById(id);
 
+// ===================== 工具函数：限制名字为4字 =====================
+function limitNameLength(name) {
+    return name.trim().slice(0, 4);
+}
+
 // ===================== 本地存储功能 =====================
 function saveGameState() {
     localStorage.setItem('chuanma_game_state', JSON.stringify(gameState));
@@ -484,6 +489,8 @@ function loadGameState() {
     const saved = localStorage.getItem('chuanma_game_state');
     if (saved) {
         gameState = JSON.parse(saved);
+        // 加载时自动截断所有名字为4字，兼容旧数据
+        gameState.players = gameState.players.map(name => limitNameLength(name));
     }
 }
 
@@ -605,7 +612,7 @@ function renderPlayers() {
         card.className = classes;
         card.dataset.index = i;
         card.innerHTML = `
-            <div class="player-name">${name}</div>
+            <div class="player-name">${limitNameLength(name)}</div>
             <div class="player-score">${getCurrentScores()[i]}</div>
         `;
         // 长按改名
@@ -613,7 +620,7 @@ function renderPlayers() {
             // 锁定状态下不允许改名
             if (gameState.playerSelectionLocked) return;
             gameState.renamingPlayer = i;
-            $('rename-input').value = name;
+            $('rename-input').value = limitNameLength(name);
             $('rename-modal').style.display = 'flex';
         });
         container.appendChild(card);
@@ -666,12 +673,12 @@ function renderHistory() {
         const roundLog = gameState.historyLogs[r];
         if (roundLog.length === 0) continue;
         const roundDiv = document.createElement('div');
-        roundDiv.style.marginBottom = '8px';
+        roundDiv.style.marginBottom: '8px';
         roundDiv.innerHTML = `<strong>--- 第 ${r + 1} 局 ---</strong>`;
         [...roundLog].reverse().forEach(log => {
             const p = document.createElement('div');
             p.textContent = log;
-            p.style.marginTop = '4px';
+            p.style.marginTop: '4px';
             roundDiv.appendChild(p);
         });
         logEl.appendChild(roundDiv);
@@ -684,20 +691,19 @@ function renderTotal() {
     const head = $('total-head');
     const body = $('total-body');
     
-    // 表头：4个玩家横向显示
+    // 表头：4个玩家横向显示（限制4字）
     let headHtml = '<tr><th>局数</th>';
     gameState.players.forEach(name => {
-        headHtml += `<th>${name}</th>`;
+        headHtml += `<th>${limitNameLength(name)}</th>`;
     });
     headHtml += '</tr>';
     head.innerHTML = headHtml;
 
     // 表体：局数纵向，新局在上，旧局在下
     let bodyHtml = '';
-    for (let r = gameState.roundScores.length; r >= 1; r--) {
-        const roundIdx = r - 1;
-        const scores = gameState.roundScores[roundIdx];
-        let row = `<tr><td>第${r}局</td>`;
+    for (let r = gameState.roundScores.length - 1; r >= 0; r--) {
+        const scores = gameState.roundScores[r];
+        let row = `<tr><td>第${r+1}局</td>`;
         scores.forEach(score => {
             row += `<td class="${score > 0 ? 'win' : score < 0 ? 'lose' : ''}">${score > 0 ? `+${score}` : score}</td>`;
         });
@@ -1000,7 +1006,7 @@ function bindEvents() {
         vibrate();
         if (!confirm('确定清空所有数据？')) return;
         gameState = {
-            players: gameState.players,
+            players: gameState.players.map(name => limitNameLength(name)),
             baseScore: 1,
             gangMultiplier: {angang:2, diangang:2, minggang:1},
             currentRound:1, roundScores:[[0,0,0,0]], historyLogs:[[]], stateHistory:[],
@@ -1102,9 +1108,11 @@ function bindEvents() {
 
     // 弹窗关闭
     $('btn-close-setting').onclick = () => { vibrate(); $('setting-modal').style.display='none'; };
+    
+    // 确认改名（强制4字）
     $('btn-confirm-rename').onclick = () => {
         vibrate();
-        const name = $('rename-input').value.trim();
+        const name = limitNameLength($('rename-input').value);
         if (!name) return alert('请输入名字');
         gameState.players[gameState.renamingPlayer] = name;
         saveGameState();
@@ -1112,6 +1120,7 @@ function bindEvents() {
         renderTotal();
         $('rename-modal').style.display='none';
     };
+    
     $('btn-cancel-rename').onclick = () => { vibrate(); $('rename-modal').style.display='none'; };
 
     // 点击空白关闭弹窗
