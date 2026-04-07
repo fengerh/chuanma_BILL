@@ -1001,12 +1001,19 @@ function bindEvents() {
         vibrate();
         if (!confirm('确定清空所有数据？')) return;
         gameState = {
-            players: gameState.players,
+            // 核心修改：恢复玩家名字为初始的东南西北家
+            players: ['北家', '西家', '东家', '南家'],
             baseScore: 1,
             gangMultiplier: {angang:2, diangang:2, minggang:1},
-            currentRound:1, roundScores:[[0,0,0,0]], historyLogs:[[]], stateHistory:[],
-            playersHu:[false,false,false,false], currentAction:null, currentPlayer:null,
-            currentWinner:null, renamingPlayer:null,
+            currentRound:1, 
+            roundScores:[[0,0,0,0]], 
+            historyLogs:[[]], 
+            stateHistory:[],
+            playersHu:[false,false,false,false], 
+            currentAction:null, 
+            currentPlayer:null,
+            currentWinner:null, 
+            renamingPlayer:null,
             playerClass:['player-north','player-west','player-east','player-south'],
             playerSelectionLocked: false
         };
@@ -1016,7 +1023,6 @@ function bindEvents() {
         renderHistory();
         renderTotal();
     };
-
     // 设置相关
     document.querySelectorAll('.base-btn').forEach(btn => {
         btn.onclick = () => {
