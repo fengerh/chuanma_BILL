@@ -437,11 +437,12 @@
     </div>
 </div>
 
-<!-- 玩家改名弹窗 -->
+<!-- 玩家改名弹窗，增加4位校验 -->
 <div class="modal" id="rename-modal">
     <div class="modal-content">
         <div class="modal-title">修改玩家名字</div>
-        <input type="text" class="input-box" id="rename-input" placeholder="输入名字">
+        <!-- 核心修改1：添加maxlength="4" 限制输入框最多输入4位 -->
+        <input type="text" class="input-box" id="rename-input" placeholder="输入名字" maxlength="4">
         <div class="grid-2">
             <button class="btn btn-green" id="btn-confirm-rename">确定</button>
             <button class="btn btn-gray" id="btn-cancel-rename">取消</button>
@@ -1100,12 +1101,14 @@ function bindEvents() {
         $('custom-minggang').value='';
     };
 
-    // 弹窗关闭
+    // 弹窗关闭，增加校验4位名字
     $('btn-close-setting').onclick = () => { vibrate(); $('setting-modal').style.display='none'; };
     $('btn-confirm-rename').onclick = () => {
         vibrate();
         const name = $('rename-input').value.trim();
         if (!name) return alert('请输入名字');
+        // 核心修改2：添加4位长度校验，超过则提示并阻止提交
+        if (name.length > 4) return alert('名字最多只能输入4位，请修改！');
         gameState.players[gameState.renamingPlayer] = name;
         saveGameState();
         renderPlayers();
