@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-web-app-capable" content="yes">
-    <title>川麻记账 v20260416.1110</title>
+    <title>川麻记账 v20260416.1450</title>
     <style>
         * {
             margin: 0;
@@ -66,7 +66,7 @@
         }
         .players-container {
             width: 100%;
-            aspect-ratio: 1 / 1;
+            aspect-ratio: 1 / 0.5;
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
             grid-template-rows: 1fr 1fr 1fr;
@@ -173,6 +173,21 @@
         .panel.active {
             display: block;
         }
+
+        /* 全局设置弹窗中的自定义输入行 */
+        .modal-content .grid-2 {
+            grid-template-columns: 1fr auto; /* 输入框占据剩余空间，按钮自适应宽度 */
+            align-items: center;
+        }
+        .modal-content .grid-2 .input-box {
+            margin-bottom: 0; /* 移除默认下边距 */
+        }
+        .modal-content .grid-2 .btn {
+            padding: 12px 16px; /* 调整按钮内边距 */
+            white-space: nowrap;
+        }
+
+
         .grid-2 {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -312,7 +327,7 @@
         /* 快捷番数按钮组 */
         .fan-quick-group {
             display: flex;
-            gap: 6px;
+            gap: px;
             margin-top: 8px;
             flex-wrap: wrap;
         }
@@ -616,6 +631,8 @@
             checkThreePlayersHu();
             updatePendingBadge();
         }
+
+        
 
         function renderHistory() {
             const logEl = $('history-log');
@@ -935,11 +952,32 @@
             $('btn-confirm-rename').onclick=()=>{ let n=$('rename-input').value.trim(); if(!n||n.length>4) return alert('名字1-4位'); gameState.players[gameState.renamingPlayer]=n; saveGameState(); renderAll(); $('rename-modal').style.display='none'; };
             $('btn-cancel-rename').onclick=()=>$('rename-modal').style.display='none';
 
-            // 长按改名
-            function addLongPress(el, cb){ let t; el.addEventListener('pointerdown',()=>{ t=setTimeout(()=>{ vibrate(100); cb(); },600); }); el.addEventListener('pointerup',()=>clearTimeout(t)); el.addEventListener('pointercancel',()=>clearTimeout(t)); }
-            document.querySelectorAll('.player-card').forEach(c=>addLongPress(c, ()=>{
-                if(gameState.playerSelectionLocked) return; const idx=c.dataset.index; gameState.renamingPlayer=idx; $('rename-input').value=gameState.players[idx]; $('rename-modal').style.display='flex';
-            }));
+            // 在 bindEvents 函数内，合适位置添加（例如放在 $('players-container').addEventListener('click', ...) 之后）
+            // 长按改名 - 事件委托
+            let longPressTimer = null;
+            const playersContainer = $('players-container');
+            playersContainer.addEventListener('pointerdown', (e) => {
+                const card = e.target.closest('.player-card');
+                if (!card) return;
+                if (gameState.playerSelectionLocked) return;
+                longPressTimer = setTimeout(() => {
+                    vibrate(100);
+                    const idx = card.dataset.index;
+                    gameState.renamingPlayer = idx;
+                    $('rename-input').value = gameState.players[idx];
+                    $('rename-modal').style.display = 'flex';
+                    longPressTimer = null;
+                }, 600);
+            });
+            playersContainer.addEventListener('pointerup', () => {
+                if (longPressTimer) clearTimeout(longPressTimer);
+            });
+            playersContainer.addEventListener('pointercancel', () => {
+                if (longPressTimer) clearTimeout(longPressTimer);
+            });
+            // 阻止默认右键菜单
+            playersContainer.addEventListener('contextmenu', (e) => e.preventDefault());
+
 
             $('setting-modal').onclick=e=>{ if(e.target===$('setting-modal')) $('setting-modal').style.display='none'; };
             $('rename-modal').onclick=e=>{ if(e.target===$('rename-modal')) $('rename-modal').style.display='none'; };
