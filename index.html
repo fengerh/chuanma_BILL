@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-web-app-capable" content="yes">
-    <title>川麻记账 v20260416.1030</title>
+    <title>川麻记账 v20260416.1100</title>
     <style>
         * {
             margin: 0;
@@ -353,7 +353,7 @@
     <div class="panel active" id="main-panel">
         <div class="grid-2" style="margin-bottom: 8px;">
             <button class="btn btn-red" id="btn-zimo">自摸</button>
-            <button class="btn btn-green" id="btn-dianpao">点炮</button>
+            <button class="btn btn-green" id="btn-dianpao">胡牌（点炮）</button>
         </div>
         <div class="grid-3" style="margin-bottom: 12px;">
             <button class="btn gang-angang" id="btn-angang">暗杠</button>
@@ -719,7 +719,8 @@
             let html = '';
             pending.forEach((ev, i) => {
                 const winName = gameState.players[ev.winner];
-                let desc = ev.type === 'zimo' ? `${winName} 自摸` : `${gameState.players[ev.loser]} 点炮 → ${winName}`;
+                // 修改为：赢家在前，箭头从输家指向赢家
+                let desc = ev.type === 'zimo' ? `${winName} 自摸` : `${winName} 胡牌 ← ${gameState.players[ev.loser]}点炮`;
                 html += `<div class="pending-item">
                     <div style="font-weight:bold;">${i+1}. ${desc}</div>
                     <div class="fan-input-row">
@@ -778,44 +779,85 @@
                 renderAll(); showPanel('main-panel');
             };
 
-            // 点炮 —— 先选赢家
-            $('btn-dianpao').onclick = ()=>{
-                vibrate(); if(checkThreePlayersHu()) { alert('本局已结束'); return; }
-                if(gameState.currentPlayer===null) { alert('请先选中点炮玩家'); return; }
+            // 原先是：先选点炮者（输家）→ 选赢家
+            // 改为：先选胡牌者（赢家）→ 选点炮者（输家）
+
+            $('btn-dianpao').onclick = () => {
+                vibrate();
+                if (checkThreePlayersHu()) { alert('本局已结束'); return; }
+                if (gameState.currentPlayer === null) {
+                    alert('请先点击选中胡牌的玩家（收钱方）');
+                    return;
+                }
+                const winner = gameState.currentPlayer; // 赢家
+                if (gameState.playersHu[winner]) {
+                    alert('该玩家已胡牌，不能重复胡牌');
+                    return;
+                }
                 lockPlayerSelection();
-                const list = $('choose-list'); list.innerHTML = '';
-                gameState.players.forEach((name,i)=>{
-                    if(i!==gameState.currentPlayer && !gameState.playersHu[i]){
-                        const btn = document.createElement('button'); btn.className='btn btn-green'; btn.textContent=name;
-                        btn.onclick=()=>{
+                const list = $('choose-list');
+                list.innerHTML = '';
+                gameState.players.forEach((name, i) => {
+                    // 候选输家：不能是赢家本人，且未胡牌
+                    if (i !== winner && !gameState.playersHu[i]) {
+                        const btn = document.createElement('button');
+                        btn.className = 'btn btn-green';
+                        btn.textContent = name;
+                        btn.onclick = () => {
                             vibrate();
-                            const loser = gameState.currentPlayer;
-                            const winner = i;
-                            addHuEvent('dianpao', winner, loser);
-                            unlockPlayerSelection(); clearPlayerActive();
-                            renderAll(); showPanel('main-panel');
+                            const loser = i;
+                            addHuEvent('dianpao', winner, loser); // 赢家、输家
+                            unlockPlayerSelection();
+                            clearPlayerActive();
+                            renderAll();
+                            showPanel('main-panel');
                         };
                         list.appendChild(btn);
                     }
                 });
-                $('choose-title').textContent = '点了谁的炮？';
+                $('choose-title').textContent = `谁点了 ${gameState.players[winner]} 的炮？`;
                 showPanel('choose-panel');
-            };
+};
+
 
             // 杠牌
             $('btn-angang').onclick = ()=>{ if(validateBeforeGang()) handleGang('angang'); };
-            $('btn-diangang').onclick = ()=>{
-                if(checkThreePlayersHu()) { alert('本局已结束'); return; }
-                if(gameState.currentPlayer===null) { alert('请选中点杠玩家'); return; }
+            // 原先是：先选点杠者（输家）→ 选杠牌者（赢家）
+            // 改为：先选杠牌者（赢家）→ 选点杠者（输家）
+
+            $('btn-diangang').onclick = () => {
+                vibrate();
+                if (checkThreePlayersHu()) { alert('本局已结束'); return; }
+                if (gameState.currentPlayer === null) {
+                    alert('请先点击选中杠牌的玩家（收钱方）');
+                    return;
+                }
+                const winner = gameState.currentPlayer; // 杠牌赢家
                 lockPlayerSelection();
-                const list=$('choose-list'); list.innerHTML='';
-                gameState.players.forEach((n,i)=>{ if(i!==gameState.currentPlayer && !gameState.playersHu[i]){
-                    const btn=document.createElement('button'); btn.className='btn gang-diangang'; btn.textContent=n;
-                    btn.onclick=()=>{ vibrate(); gameState.currentWinner=i; handleGang('diangang'); };
-                    list.appendChild(btn);
-                }});
-                $('choose-title').textContent='点了谁的杠？'; showPanel('choose-panel');
+                const list = $('choose-list');
+                list.innerHTML = '';
+                gameState.players.forEach((name, i) => {
+                    // 候选输家：不能是赢家本人，且未胡牌
+                    if (i !== winner && !gameState.playersHu[i]) {
+                        const btn = document.createElement('button');
+                        btn.className = 'btn gang-diangang';
+                        btn.textContent = name;
+                        btn.onclick = () => {
+                            vibrate();
+                            const loser = i;
+                            gameState.currentWinner = winner; // 记录杠牌赢家（用于结算）
+                            gameState.currentPlayer = loser;   // 临时将当前玩家设为输家，因为handleGang内部用了currentPlayer作输家
+                            handleGang('diangang');
+                            // 注意：handleGang 会调用 unlockPlayerSelection 和 clearPlayerActive
+                        };
+                        list.appendChild(btn);
+                    }
+                });
+                $('choose-title').textContent = `谁给 ${gameState.players[winner]} 点了杠？`;
+                showPanel('choose-panel');
             };
+
+
             $('btn-minggang').onclick = ()=>{ if(validateBeforeGang()) handleGang('minggang'); };
             function validateBeforeGang(){
                 if(checkThreePlayersHu()) { alert('本局已结束'); return false; }
